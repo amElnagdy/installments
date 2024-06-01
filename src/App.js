@@ -8,8 +8,9 @@ const { Title, Text } = Typography;
 
 export default function App() {
   const [data, setData] = useState([]);
-  const [nextPayments, setNextPayments] = useState([]);
-  const [displayMonth, setDisplayMonth] = useState("");
+  const [currentMonthPayments, setCurrentMonthPayments] = useState([]);
+  const [nextMonthPayments, setNextMonthPayments] = useState([]);
+  const [followingMonthPayments, setFollowingMonthPayments] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -23,7 +24,7 @@ export default function App() {
       .then((response) => {
         const result = parseData(response.data);
         setData(result);
-        findNextPayments(result);
+        categorizePayments(result);
       })
       .catch((error) => {
         console.log(error);
@@ -39,8 +40,9 @@ export default function App() {
     return result.data.filter((entry) => entry.Apartment.trim() !== "");
   };
 
-  const findNextPayments = (data) => {
+  const categorizePayments = (data) => {
     const today = new Date();
+    const currentMonth = today;
     const nextMonth = addMonths(today, 1);
     const followingMonth = addMonths(today, 2);
 
@@ -53,33 +55,65 @@ export default function App() {
       (payment) => !isNaN(payment["Due Date"])
     );
 
-    const nextMonthPayments = validData.filter(
+    const currentMonthPayments = validData.filter(
       (payment) =>
-        payment["Due Date"] >= today &&
-        isSameMonth(payment["Due Date"], nextMonth)
+        payment["Due Date"] >= today && isSameMonth(payment["Due Date"], currentMonth)
     );
 
-    if (nextMonthPayments.length > 0) {
-      setNextPayments(nextMonthPayments);
-      setDisplayMonth("Next Month");
-    } else {
-      const followingMonthPayments = validData.filter(
-        (payment) =>
-          payment["Due Date"] >= today &&
-          isSameMonth(payment["Due Date"], followingMonth)
-      );
+    const nextMonthPayments = validData.filter(
+      (payment) =>
+        payment["Due Date"] >= today && isSameMonth(payment["Due Date"], nextMonth)
+    );
 
-      if (followingMonthPayments.length > 0) {
-        setNextPayments(followingMonthPayments);
-        setDisplayMonth("Following Month");
-      } else {
-        setNextPayments([]);
-        setDisplayMonth("");
-      }
-    }
+    const followingMonthPayments = validData.filter(
+      (payment) =>
+        payment["Due Date"] >= today && isSameMonth(payment["Due Date"], followingMonth)
+    );
+
+    setCurrentMonthPayments(currentMonthPayments);
+    setNextMonthPayments(nextMonthPayments);
+    setFollowingMonthPayments(followingMonthPayments);
 
     setData(validData.sort((a, b) => a["Due Date"] - b["Due Date"]));
   };
+
+  const renderPayments = (payments, title) => (
+    <div style={{ marginBottom: "20px" }}>
+      <Title level={3}>{title}</Title>
+      {payments.length > 0 ? (
+        <Row gutter={[16, 16]}>
+          {payments.map((payment, index) => (
+            <Col key={index} xs={24} sm={12} md={8}>
+              <Card
+                title={`${payment.Apartment}`}
+                bordered={false}
+                style={{ backgroundColor: "#FFD700" }} // Highlight color for next payments
+              >
+                <p>
+                  <Text strong>Due Date:</Text>{" "}
+                  {payment["Due Date"].toLocaleDateString()}
+                </p>
+                <p>
+                  <Text strong>Total Amount:</Text> {payment.Amount}
+                </p>
+                <p>
+                  <Text strong>Per Person:</Text> {payment["Per Person"]}
+                </p>
+                <p>
+                  <Text strong>Check by:</Text> {payment["Check by"]}
+                </p>
+                <p>
+                  <Text strong>Notes:</Text> {payment.Notes || "None"}
+                </p>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      ) : (
+        <p>No payments this month.</p>
+      )}
+    </div>
+  );
 
   return (
     <div style={{ padding: "20px" }}>
@@ -87,39 +121,10 @@ export default function App() {
         Installment Details
       </Title>
 
-      {nextPayments.length > 0 && (
-        <div style={{ marginBottom: "20px" }}>
-          <Title level={3}>{displayMonth} Payments</Title>
-          <Row gutter={[16, 16]}>
-            {nextPayments.map((payment, index) => (
-              <Col key={index} xs={24} sm={12} md={8}>
-                <Card
-                  title={`${payment.Apartment}`}
-                  bordered={false}
-                  style={{ backgroundColor: "#FFD700" }} // Highlight color for next payments
-                >
-                  <p>
-                    <Text strong>Due Date:</Text>{" "}
-                    {payment["Due Date"].toLocaleDateString()}
-                  </p>
-                  <p>
-                    <Text strong>Total Amount:</Text> {payment.Amount}
-                  </p>
-                  <p>
-                    <Text strong>Per Person:</Text> {payment["Per Person"]}
-                  </p>
-                  <p>
-                    <Text strong>Check by:</Text> {payment["Check by"]}
-                  </p>
-                  <p>
-                    <Text strong>Notes:</Text> {payment.Notes || "None"}
-                  </p>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </div>
-      )}
+      {renderPayments(currentMonthPayments, "Current Month Payments")}
+      {renderPayments(nextMonthPayments, "Next Month Payments")}
+      {renderPayments(followingMonthPayments, "Following Month Payments")}
+
       <Title level={2} style={{ textAlign: "center" }}>
         All Installments
       </Title>
